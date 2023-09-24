@@ -1,9 +1,8 @@
 import heapq
 import cv2 as cv
 import numpy as np
-import sys
 
-img = cv.imread("img.png", cv.IMREAD_GRAYSCALE)
+img = cv.imread("mona_lisa.jpg", cv.IMREAD_GRAYSCALE)
 
 # the smaller side of the image fed to the program will be the radius of the circle
 radius = min(img.shape)
@@ -24,7 +23,6 @@ for i in range(num_pins):
     pins.append((x,y))
     pinned_image = cv.circle(cropped_img, (x-1,y-1), 3, 255, -1)
 
-cv.imshow("pinned image", pinned_image)
 
 # calculate priority queues for each pin
 
@@ -33,31 +31,37 @@ priority_queues = []
 current_a_pin = 0
 for pin_from in pins:
     priority_queue = []
-    # TODO: compute cost of line
-    # compute the difference between an image of dimensions radius x radius with a line between pins drawn on it and the cropped image
     current_b_pin = 0
     for pin_to in pins:
-        line_image = np.zeros((radius, radius), dtype=np.uint8)
-        line_image = cv.line(line_image, (pins[current_a_pin]), (pins[current_b_pin]), 255, 1)
-        COMPUTED_COST = np.sum(np.abs(np.subtract(line_image, cropped_img)))
-        heapq.heappush(priority_queue, (COMPUTED_COST, pin_to)) # TODO: replace computeed cost with actual cost (how far off the line is from the pixels in the base image)
+        # black on white lines
+        # line_image = np.full((radius, radius), 255, dtype=np.uint8)
+        copy = np.copy(cropped_img)
+        line_image = cv.line(copy, (pins[current_a_pin]), (pins[current_b_pin]), 0, 1)
+        COMPUTED_COST = np.average(np.abs(np.subtract(line_image, cropped_img)))
+        heapq.heappush(priority_queue, (COMPUTED_COST, pin_to)) 
         current_b_pin += 1
         del line_image
+        del copy
     priority_queues.append(priority_queue)
     del priority_queue
     current_a_pin += 1
     print(current_a_pin/num_pins*100, "% \done of priority queues")
 
-final_image = np.zeros((radius, radius), dtype=np.uint8)
+final_image = np.full((radius, radius), 255, dtype=np.uint8)
 num_lines = 4000
 start_pin = 0
 for i in range(num_lines):
     this_pins_pq = priority_queues[start_pin]
+    # TODO: don't just pop. Pop and see if it's different enough from what we have already drawn
     destination = heapq.heappop(this_pins_pq)
-    final_image = cv.line(final_image, pins[start_pin], destination[1], 255, 1)
+    # uniqueness = np.sum(np.abs(np.subtract(final_image, cv.line(np.zeros((radius,radius), dtype=np.uint8), pins[start_pin], destination[1], 255, 1))))
+    # if uniqueness < 1000:
+    #     continue
+    final_image = cv.line(final_image, pins[start_pin], destination[1], 0, 1)
     start_pin = pins.index(destination[1])
     print(i/num_lines*100, "% \done of final image")
 
+cv.imshow("pinned image", pinned_image)
 cv.imshow("final image", final_image)
 
 # wait until window is closed to stop GUI
