@@ -15,6 +15,15 @@ cropped_img = img[(int)(img.shape[0]/2 - radius/2):(int)(img.shape[0]/2 + radius
 num_pins = 100
 pins = []
 
+# the path of pins to follow to create the string art
+path = []
+
+# possible paths not done yet
+possible_paths = []
+for i in range(num_pins):
+    for j in range(num_pins):
+        possible_paths.append((i,j))
+
 # create a circle of pins around the image represented as dots
 for i in range(num_pins):
     angle = (2*np.pi/num_pins)*i
@@ -27,18 +36,28 @@ NUM_LINES = 4000
 
 line_image = np.full((radius, radius), 255, dtype=np.uint8)
 
+# choose a random pin to start the line
+start = np.random.choice(num_pins)
+path.append(start)
 for i in range(NUM_LINES):
     sys.stdout.write('\r')
-    sys.stdout.write(f'Printing image... {(int)(i/NUM_LINES*100)}%')
+    sys.stdout.write(f'Calculating Path... {(int)(i/NUM_LINES*100)}%')
     sys.stdout.flush()
-    # choose a random pin to start the line
-    start = np.random.choice(num_pins)
-    for i in range(num_pins):
-        if i is not start:
+    min_cost = sys.maxsize
+    min_index = 0
+    for j in range(num_pins):
+        if j != start and (start,j) in possible_paths:
             line_image_copy = np.copy(line_image)
-            line_image_copy = cv.line(line_image_copy, pins[start], pins[i], 0, 1)
-            cost = np.abs
- 
+            line_image_copy = cv.line(line_image_copy, pins[start], pins[j], 0, 1)
+            cost = np.sum(cv.absdiff(line_image_copy, cropped_img))/np.linalg.norm(np.array(pins[start]) - np.array(pins[j]))
+            if (cost < min_cost):
+                min_cost = cost
+                min_index = j
+    path.append(min_index)
+    possible_paths.remove((start, min_index))
+    line_image = cv.line(line_image, pins[start], pins[min_index], 0, 1)
+    start = min_index
+
 
 
 # sys.stdout.write('\r')
@@ -46,7 +65,7 @@ for i in range(NUM_LINES):
 # sys.stdout.flush()
 
 cv.imwrite("image_pins.png", pinned_image)
-cv.imwrite("final.png", final_image)
+cv.imwrite("final.png", line_image)
 
 # wait until window is closed to stop GUI
 cv.waitKey(0)
